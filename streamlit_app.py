@@ -33,16 +33,19 @@ vn = MyVanna(
 vn.run_sql = run_sql
 vn.run_sql_is_set = True
 
+if "conv_hist" not in st.session_state:
+    st.session_state.conv_hist = []
+
 # Initialize chat messages in session state
 if "messages" not in st.session_state:
-    st.session_state["messages"] = [{"role": "assistant", "content": "How can I help you with your data today?"}]
+    st.session_state["messages"] = [{"type": "opening", "role": "assistant", "content": "How can I help you with your data today?"}]
 
 # Display chat messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"]):
         if isinstance(msg["content"], pd.DataFrame):
             st.dataframe(msg["content"], use_container_width=True)
-        elif "How can I help you with your data today?" in msg["content"] or "user" in msg["role"]:
+        elif "user" in msg["role"] or "opening" in msg["type"] or "summary" in msg["type"]:
             st.write(msg["content"])
         else:
             st.code(msg["content"], language="sql")
@@ -50,13 +53,19 @@ for msg in st.session_state.messages:
 # Handle user input
 if user_input := st.chat_input():
     # Add user message to the conversation
-    st.session_state.messages.append({"role": "user", "content": user_input})
+    st.session_state.messages.append({"type": "user", "role": "user", "content": user_input})
     with st.chat_message("user"):
         st.write(user_input)
 
     # Generate SQL and query the database
-    sql = vn.generate_sql(user_input)
-    st.session_state.messages.append({"role": "assistant", "content": sql})
+    if len(st.session_state.conv_hist) > 0:
+        prompt = "Previous prompts and generated SQL queries are listed\n" + "\n".join(st.session_state.conv_hist) + "\nAnswer the following question based on the history: " + user_input 
+    else:
+        prompt = user_input
+    sql = vn.generate_sql(prompt)
+    st.session_state.conv_hist.append(user_input)
+    st.session_state.messages.append({"type": "sql", "role": "assistant", "content": sql})
+    st.session_state.conv_hist.append(sql)
     with st.chat_message("assistant"):
         st.code(sql, language="sql")
 
@@ -64,10 +73,15 @@ if user_input := st.chat_input():
 
     # Add the bot's response (and optionally the DataFrame) to the conversation
     if not df.empty:
-        st.session_state.messages.append({"role": "assistant", "content": df})
+        st.session_state.messages.append({"type": "df", "role": "assistant", "content": df})
         with st.chat_message("assistant"):
             st.dataframe(df, use_container_width=True)
     else:
         st.session_state.messages.append({"role": "assistant", "content": "No data was returned for your query."})
         with st.chat_message("assistant"):
             st.write("No data was returned for your query.")
+    
+    summary = vn.generate_summary(user_input, df)
+    st.session_state.messages.append({"type": "summary", "role": "assistant", "content": summary})
+    with st.chat_message("assistant"):
+        st.write(summary)
