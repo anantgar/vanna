@@ -59,9 +59,9 @@ if user_input := st.chat_input():
 
     # Generate SQL and query the database
     if len(st.session_state.conv_hist) > 0:
-        prompt = "Previous prompts and generated SQL queries are listed\n" + "\n".join(st.session_state.conv_hist) + "\nAnswer the following question based on the history: " + user_input 
+        prompt = "Previous prompts and generated SQL queries:\n" + "\n".join(st.session_state.conv_hist) + "\nAnswer the following question based on the history: This is a Redshift database. " + user_input 
     else:
-        prompt = user_input
+        prompt = "This is a Redshift database. " + user_input
     sql = vn.generate_sql(prompt)
     st.session_state.conv_hist.append(user_input)
     st.session_state.messages.append({"type": "sql", "role": "assistant", "content": sql})
@@ -69,19 +69,20 @@ if user_input := st.chat_input():
     with st.chat_message("assistant"):
         st.code(sql, language="sql")
 
-    df = vn.run_sql(sql)
-
-    # Add the bot's response (and optionally the DataFrame) to the conversation
-    if not df.empty:
-        st.session_state.messages.append({"type": "df", "role": "assistant", "content": df})
+    try:
+        df = vn.run_sql(sql)
+        if not df.empty:
+            st.session_state.messages.append({"type": "df", "role": "assistant", "content": df})
+            with st.chat_message("assistant"):
+                st.dataframe(df, use_container_width=True)
+        else:
+            st.session_state.messages.append({"role": "assistant", "content": "No data was returned for your query."})
+            with st.chat_message("assistant"):
+                st.write("No data was returned for your query.")
+        
+        summary = vn.generate_summary(user_input, df)
+        st.session_state.messages.append({"type": "summary", "role": "assistant", "content": summary})
         with st.chat_message("assistant"):
-            st.dataframe(df, use_container_width=True)
-    else:
-        st.session_state.messages.append({"role": "assistant", "content": "No data was returned for your query."})
-        with st.chat_message("assistant"):
-            st.write("No data was returned for your query.")
-    
-    summary = vn.generate_summary(user_input, df)
-    st.session_state.messages.append({"type": "summary", "role": "assistant", "content": summary})
-    with st.chat_message("assistant"):
-        st.write(summary)
+            st.write(summary)
+    except Exception as e:
+        st.exception(e)
