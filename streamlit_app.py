@@ -3,6 +3,7 @@ import redshift_connector
 from vanna.openai import OpenAI_Chat
 from vanna.vannadb import VannaDB_VectorStore
 import pandas as pd
+import plotly.graph_objects as go
 
 st.set_page_config(page_title="Chat with Your Data", layout="wide")
 st.title("💬 Talk to Your Data")
@@ -33,6 +34,7 @@ vn = MyVanna(
 vn.run_sql = run_sql
 vn.run_sql_is_set = True
 
+# Initialize conversation history
 if "conv_hist" not in st.session_state:
     st.session_state.conv_hist = []
 
@@ -47,6 +49,8 @@ for msg in st.session_state.messages:
             st.dataframe(msg["content"], use_container_width=True)
         elif "user" in msg["role"] or "opening" in msg["type"] or "summary" in msg["type"]:
             st.write(msg["content"])
+        elif msg["type"] == "plotly":
+            st.plotly_chart(msg["content"])
         else:
             st.code(msg["content"], language="sql")
 
@@ -59,13 +63,15 @@ if user_input := st.chat_input():
 
     # Generate SQL and query the database
     if len(st.session_state.conv_hist) > 0:
-        prompt = "Previous prompts and generated SQL queries:\n" + "\n".join(st.session_state.conv_hist) + "\nAnswer the following question based on the history: This is a Redshift database. " + user_input 
+        prompt = "Previous prompts and generated SQL queries:\n" + "\n".join(st.session_state.conv_hist) + "\nAnswer the following question based on the history: This is a Redshift database. " + user_input
     else:
         prompt = "This is a Redshift database. " + user_input
+    
     sql = vn.generate_sql(prompt)
     st.session_state.conv_hist.append(user_input)
     st.session_state.messages.append({"type": "sql", "role": "assistant", "content": sql})
     st.session_state.conv_hist.append(sql)
+    
     with st.chat_message("assistant"):
         st.code(sql, language="sql")
 
@@ -75,14 +81,25 @@ if user_input := st.chat_input():
             st.session_state.messages.append({"type": "df", "role": "assistant", "content": df})
             with st.chat_message("assistant"):
                 st.dataframe(df, use_container_width=True)
+
+            # Generate Plotly code
+            plotly_code = vn.generate_plotly_code(question=user_input, sql=sql, df_metadata=str(df.describe()))
+            st.session_state.messages.append({"type": "plotly_code", "role": "assistant", "content": plotly_code})
+            
+            # Generate and display the Plotly figure
+            plotly_figure = vn.get_plotly_figure(plotly_code, df, dark_mode=True)
+            st.session_state.messages.append({"type": "plotly", "role": "assistant", "content": plotly_figure})
+            with st.chat_message("assistant"):
+                st.plotly_chart(plotly_figure)
+
+            # Generate and display summary
+            summary = vn.generate_summary(user_input, df)
+            st.session_state.messages.append({"type": "summary", "role": "assistant", "content": summary})
+            with st.chat_message("assistant"):
+                st.write(summary)
         else:
-            st.session_state.messages.append({"role": "assistant", "content": "No data was returned for your query."})
+            st.session_state.messages.append({"type": "error", "role": "assistant", "content": "No data was returned for your query."})
             with st.chat_message("assistant"):
                 st.write("No data was returned for your query.")
-        
-        summary = vn.generate_summary(user_input, df)
-        st.session_state.messages.append({"type": "summary", "role": "assistant", "content": summary})
-        with st.chat_message("assistant"):
-            st.write(summary)
     except Exception as e:
         st.exception(e)

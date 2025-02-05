@@ -2,3 +2,4 @@ streamlit
 openai
 vanna
 redshift_connector
+plotly
