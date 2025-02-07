@@ -1,5 +1,5 @@
 streamlit
 openai
 vanna
-redshift_connector
+psycopg2-binary
 plotly

@@ -1,5 +1,5 @@
 import streamlit as st
-import redshift_connector
+import psycopg2
 from vanna.openai import OpenAI_Chat
 from vanna.vannadb import VannaDB_VectorStore
 import pandas as pd
@@ -10,8 +10,8 @@ st.title("💬 Talk to Your Data")
 
 openai_api_key = st.secrets["openai_api_key"]
 
-conn = redshift_connector.connect(
-    database=st.secrets["database"],
+conn = psycopg2.connect(
+    dbname=st.secrets["database"],
     user=st.secrets["user"],
     password=st.secrets["db_password"],
     host=st.secrets["host"],
