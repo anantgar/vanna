@@ -1,14 +1,49 @@
 import streamlit as st
+import base64
+import os
 import psycopg2
 from vanna.openai import OpenAI_Chat
 from vanna.vannadb import VannaDB_VectorStore
 import pandas as pd
 import plotly.graph_objects as go
+from openai import OpenAI
 
 st.set_page_config(page_title="Chat with Your Data", layout="wide")
 st.title("💬 Talk to Your Data")
 
 openai_api_key = st.secrets["openai_api_key"]
+client = OpenAI(
+    api_key=openai_api_key
+)
+
+def TTS(text: str):
+    response = client.audio.speech.create(
+        model='tts-1',
+        voice='alloy',
+        input=text
+    )
+
+    # Save the audio file
+    audio_path = "output.mp3"
+    response.write_to_file(audio_path)
+
+    # Read audio file
+    with open(audio_path, "rb") as audio_file:
+        audio_bytes = audio_file.read()
+
+    # Convert to base64 for auto-play
+    audio_base64 = base64.b64encode(audio_bytes).decode()
+
+    # HTML + JavaScript for autoplay
+    audio_html = f"""
+    <audio autoplay>
+        <source src="data:audio/mp3;base64,{audio_base64}" type="audio/mp3">
+    </audio>
+    """
+
+    # Embed in Streamlit app
+    st.markdown(audio_html, unsafe_allow_html=True)
+    os.remove(audio_path)
 
 conn = psycopg2.connect(
     dbname=st.secrets["database"],
@@ -97,6 +132,7 @@ if user_input := st.chat_input():
             st.session_state.messages.append({"type": "summary", "role": "assistant", "content": summary})
             with st.chat_message("assistant"):
                 st.write(summary)
+            TTS(summary)
         else:
             st.session_state.messages.append({"type": "error", "role": "assistant", "content": "No data was returned for your query."})
             with st.chat_message("assistant"):
