@@ -19,7 +19,7 @@ client = OpenAI(
 def TTS(text: str):
     response = client.audio.speech.create(
         model='tts-1',
-        voice='alloy',
+        voice='echo',
         input=text
     )
 
@@ -89,8 +89,25 @@ for msg in st.session_state.messages:
         else:
             st.code(msg["content"], language="sql")
 
+audio_value = st.audio_input("Press the mic button to record", key="voice_input")
+
+if audio_value:
+    transcript = client.audio.transcriptions.create(
+        model="whisper-1",
+        file = audio_value
+    )
+    transcript_text = transcript.text  # Extract text
+    st.session_state["transcribed_text"] = transcript_text  # Store transcription
+    # st.rerun()  # Refresh UI to update chat input   
+
+user_input = st.chat_input("Type a message or use voice input")
+
+if "transcribed_text" in st.session_state and not user_input:
+    user_input = st.session_state["transcribed_text"]  # Use transcribed text as input
+    del st.session_state["transcribed_text"]  # Clear stored transcription
+
 # Handle user input
-if user_input := st.chat_input():
+if user_input:
     # Add user message to the conversation
     st.session_state.messages.append({"type": "user", "role": "user", "content": user_input})
     with st.chat_message("user"):
