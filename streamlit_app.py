@@ -1,6 +1,8 @@
 import streamlit as st
 import sys
 sys.path.insert(0, "libs")  # Prioritize your local version
+# import vanna
+# print("Loaded vanna from:", vanna.__file__)  
 import base64
 import os
 import psycopg2
@@ -136,19 +138,32 @@ if user_input:
             with st.chat_message("assistant"):
                 st.dataframe(df, use_container_width=True)
 
-            # Generate Plotly code
-            plotly_code = vn.generate_plotly_code(question=user_input, sql=sql, df_metadata=str(df.describe()))
-            st.session_state.messages.append({"type": "plotly_code", "role": "assistant", "content": plotly_code})
-            
-            # Generate and display the Plotly figure
-            plotly_figure = vn.get_plotly_figure(plotly_code, df, dark_mode=True)
-            st.session_state.messages.append({"type": "plotly", "role": "assistant", "content": plotly_figure})
-            with st.chat_message("assistant"):
-                st.plotly_chart(plotly_figure)
+            plotly_gen = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "developer", "content": "Determine if the user's request/question explicitly asks for a chart, plot, or graph. Return True or False."},
+                    {
+                        "role": "user",
+                        "content": user_input
+                    }
+                ],
+            )
+
+            if plotly_gen.choices[0].message.content == "True":
+                # Generate Plotly code
+                plotly_code = vn.generate_plotly_code(question=user_input, sql=sql, df_metadata=str(df.describe()))
+                st.session_state.messages.append({"type": "plotly_code", "role": "assistant", "content": plotly_code})
+                print(plotly_code)
+                # Generate and display the Plotly figure
+
+                plotly_figure = vn.get_plotly_figure(plotly_code, df, dark_mode=True)
+                st.session_state.messages.append({"type": "plotly", "role": "assistant", "content": plotly_figure})
+                with st.chat_message("assistant"):
+                    st.plotly_chart(plotly_figure)
 
             # Generate and display summary
             summary = vn.generate_summary(user_input, df)
-            TTS(summary)
+            # TTS(summary)
             st.session_state.messages.append({"type": "summary", "role": "assistant", "content": summary})
             with st.chat_message("assistant"):
                 st.write(summary)
