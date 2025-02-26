@@ -1,4 +1,6 @@
 import streamlit as st
+import sys
+sys.path.insert(0, "libs")  # Prioritize your local version
 import base64
 import os
 import psycopg2

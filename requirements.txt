@@ -1,5 +1,4 @@
 streamlit
 openai
-vanna
 psycopg2-binary
 plotly
