@@ -161,12 +161,13 @@ if user_input:
                 with st.chat_message("assistant"):
                     st.plotly_chart(plotly_figure)
 
-            # Generate and display summary
-            summary = vn.generate_summary(user_input, df)
-            # TTS(summary)
-            st.session_state.messages.append({"type": "summary", "role": "assistant", "content": summary})
-            with st.chat_message("assistant"):
-                st.write(summary)
+            else:
+                # Generate and display summary
+                summary = vn.generate_summary(user_input, df)
+                # TTS(summary)
+                st.session_state.messages.append({"type": "summary", "role": "assistant", "content": summary})
+                with st.chat_message("assistant"):
+                    st.write(summary)
         else:
             st.session_state.messages.append({"type": "error", "role": "assistant", "content": "No data was returned for your query."})
             with st.chat_message("assistant"):
