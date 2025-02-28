@@ -164,7 +164,7 @@ if user_input:
             else:
                 # Generate and display summary
                 summary = vn.generate_summary(user_input, df)
-                # TTS(summary)
+                TTS(summary)
                 st.session_state.messages.append({"type": "summary", "role": "assistant", "content": summary})
                 with st.chat_message("assistant"):
                     st.write(summary)
